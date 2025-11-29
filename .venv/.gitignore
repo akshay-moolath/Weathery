@@ -1,7 +1,0 @@
-# Files to ignore
-
-# Ignore compiled code (specific to language, e.g., Python:
-__pycache__/
-
-# Ignore sensitive environment variable files
-.env
