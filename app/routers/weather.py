@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get("/{city_name}")
 def get_details(location: str):
 
-    key = f"lat:{location.lower()}" #making key-value system
+    key = f"weather:{location.lower()}" #making key-value system
 
     # 1) Check cache
     cached = r.get(key)
@@ -38,7 +38,11 @@ def get_details(location: str):
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=f"Weather API error: {response.text}")
     data_dict = response.json()
-    latitude= data_dict['latitude']
-    r.setex(key, CACHE_TTL, str(latitude))
-    return {"city": location, "latitude": latitude, "source": "api"}
+    desired_info =['address','latitude','longitude','timezone','currentConditions']
+    extracted_info = {}
+    for x in desired_info:
+        extracted_info[x]=data_dict[x]
+    json_data = json.dumps(extracted_info)
+    r.set(key, json_data, CACHE_TTL)
+    return {"city": location, 'info':extracted_info, "source": "api"}
 

@@ -7,3 +7,4 @@ app = FastAPI(title="Weather API with Redis")
 app.include_router(weather_router, prefix="/weather", tags=["weather"])
 
 
+
