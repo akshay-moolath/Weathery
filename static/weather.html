@@ -6,49 +6,19 @@
 </head>
 <body>
   <h1>Weathery</h1>
-
-  <label for="city">City:</label>
-  <input id="city" type="text" value="Mumbai" />
-  <button id="btn">Get Weather</button>
-
-  <div id="data-container">No data yet.</div>
-
+  <label for="location">Location</label>
+  <input type="text" id="location" name="location">
+  <button type="button" onclick="weather()">Get Weather Data</button>
+  <p id="message"></p>
   <script>
-    const baseUrl = 'http://127.0.0.1:8000'; // FastAPI server
-    const btn = document.getElementById('btn');
-    const input = document.getElementById('city');
-    const container = document.getElementById('data-container');
-
-    btn.addEventListener('click', () => {
-      const city = input.value.trim();
-      if (!city) return;
-
-      container.innerHTML = "Loading...";
-
-      fetch(`${baseUrl}/weather/${encodeURIComponent(city)}`)
-        .then(resp => {
-          if (!resp.ok) throw new Error('HTTP ' + resp.status);
-          return resp.json();
-        })
+    function weather() {
+    const value = document.getElementById("location").value;
+    fetch(`http://127.0.0.1:8000/weather/${value}`)
+        .then(response => response.json())
         .then(data => {
-          console.log("API data:", data);
-          const info = data.info || {};
-          container.innerHTML = `
-            <p>City: <strong>${data.city}</strong></p>
-            <p>Latitude: <strong>${info.latitude ?? 'N/A'}</strong></p>
-            <p>Longitude: <strong>${info.longitude ?? 'N/A'}</strong></p>
-            <p>Timezone: <strong>${info.timezone ?? 'N/A'}</strong></p>
-            <h3>Current</h3>
-            <p>Temp: <strong>${info.current?.temp ?? 'N/A'}</strong></p>
-            <p>Conditions: <strong>${info.current?.conditions ?? 'N/A'}</strong></p>
-            <p>Source: <strong>${data.source}</strong></p>
-          `;
-        })
-        .catch(err => {
-          console.error('Fetch error:', err);
-          container.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+            document.getElementById("message").textContent = JSON.stringify(data);
         });
-    });
+}
   </script>
 </body>
 </html>

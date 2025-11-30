@@ -17,7 +17,7 @@ r = redis.from_url(REDIS_URL, decode_responses=True)
 
 router = APIRouter()
 
-@router.get("/{city_name}")
+@router.get("/weather/{location}")
 def get_details(location: str):
 
     key = f"weather:{location.lower()}" #making key-value system
