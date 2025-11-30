@@ -1,45 +1,284 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <title>Weathery</title>
-</head>
-<body>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
-    background-image: url('https://i.ibb.co/GvjDXYK9/pexels-abdghat-1631677.jpg');
-    background-size : cover
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      margin: 18px;
+      background-image: url('https://i.ibb.co/KjHgY4MD/pexels-abdghat-1631677.jpg');
+      color: #07203b;
     }
-    h1{text-align: center;
-    }
-    
-    .btn {
-        padding: 5px 10px; /* Padding INSIDE the button */
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-</style>
-    
+    h1 { text-align:center; margin-bottom:8px; }
+    .wrap { max-width:900px; margin: 0 auto; }
+    .controls { display:flex; gap:8px; justify-content:center; margin-bottom:12px; }
+    input[type="text"] { padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1; min-width:220px; }
+    button { padding:8px 12px; border-radius:6px; border:0; background:#2563eb; color:white; cursor:pointer; }
+    .card { background:white; border-radius:8px; padding:12px; box-shadow: 0 8px 20px rgba(2,6,23,0.06); margin-bottom:12px; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { padding:8px 10px; border-bottom:1px solid #eef2ff; text-align:left; }
+    th { background:#f1f5f9; color:#334155; font-weight:700; }
+    .k { color:#0f1724; font-weight:600; width:40%; }
+    .v { color:#0f1724; }
+    .small { color:#475569; font-size:13px; text-align:center; }
+    .error { color:#b91c1c; text-align:center; }
+    .empty { padding:20px; text-align:center; color:#475569; font-size:14px; }
+    .suggestion-list { background: white; border: 1px solid #e6eef8; border-radius:6px; box-shadow:0 6px 18px rgba(2,6,23,0.06); max-height:220px; overflow:auto; }
+.suggestion-item { padding:8px 10px; cursor:pointer; color:#07203b; }
+.suggestion-item:hover, .suggestion-item.active { background:#eef2ff; }
+.suggestion-sub { display:block; font-size:12px; color:#475569; margin-top:4px; }
   </style>
-  <h1>Weathery</h1><hr>
-  <div class="form-group">
-    <label for="location"></label>
-    <input type="text" id="location" placeholder="Enter Location">
-    <button class="btn" onclick="weather()">Get Weather Data</button><br></br>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Weathery</h1><hr>
+
+    <div class="controls" style="position:relative;">
+  <input id="location" placeholder="Type a city (try Mumbai)" autocomplete="off" />
+  <div id="suggestions" style="position:absolute;left:12px;right:160px;top:46px;z-index:40;"></div>
+  <button id="btn">Get Weather</button>
+  <button id="clear" style="background:#94a3b8">Clear</button>
+</div>
+
+    <div id="status" class="small">Enter a city and click Get Weather</div>
+
+    <div id="output"></div>
   </div>
-  <div id="message"></div>
-  <script>
-    function weather() {
-    const value = document.getElementById("location").value;
-    fetch(`http://127.0.0.1:8000/weather/${value}`)
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById("message").textContent= JSON.stringify(data);
-        });
+
+<script>
+  // ---- Autocomplete for location using Nominatim (OpenStreetMap) ----
+// Simple debounce helper
+function debounce(fn, wait){
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(()=>fn.apply(this, args), wait);
+  };
 }
-  </script>
+
+// DOM refs
+const inputEl = document.getElementById('location');
+const suggestionBox = document.getElementById('suggestions');
+
+let suggestions = [];
+let selectedIndex = -1;
+const cache = new Map(); // cache queries -> results
+
+// Build Nominatim URL (no API key)
+function nominatimUrl(q){
+  const base = 'https://nominatim.openstreetmap.org/search';
+  const params = new URLSearchParams({
+    q,
+    format: 'json',
+    addressdetails: '1',
+    limit: '6'
+  });
+  return `${base}?${params.toString()}`;
+}
+
+// Render suggestion list
+function renderSuggestions(list){
+  if (!list || list.length === 0){
+    suggestionBox.innerHTML = '';
+    return;
+  }
+  const html = ['<div class="suggestion-list">'];
+  list.forEach((it, idx) => {
+    // display name and a small hint (state/country)
+    const hint = (it.address && (it.address.state || it.address.country)) ? (it.address.state || it.address.country) : '';
+    const active = idx === selectedIndex ? ' active' : '';
+    html.push(`<div data-idx="${idx}" class="suggestion-item${active}">` +
+              `<strong>${escapeHtml(it.display_name.split(',')[0])}</strong>` +
+              (hint ? `<span class="suggestion-sub">${escapeHtml(hint)}</span>` : '') +
+              `</div>`);
+  });
+  html.push('</div>');
+  suggestionBox.innerHTML = html.join('');
+}
+
+// escape helper (reuse if you have one)
+function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+// When user picks a suggestion (by click or enter)
+function pickSuggestion(idx){
+  const it = suggestions[idx];
+  if (!it) return;
+  // use the display name as the input (you could also use a more compact name)
+  inputEl.value = it.display_name.split(',')[0];
+  // collapse suggestion box
+  suggestionBox.innerHTML = '';
+  selectedIndex = -1;
+  // trigger your existing "Get" action
+  document.getElementById('btn').click();
+}
+
+// Fetch suggestions (debounced below)
+async function fetchSuggestions(q){
+  q = q.trim();
+  if (!q) { suggestions = []; renderSuggestions([]); return; }
+  // cached?
+  if (cache.has(q)) {
+    suggestions = cache.get(q);
+    renderSuggestions(suggestions);
+    return;
+  }
+  // Nominatim polite usage: keep requests light and include referer (browser sends it)
+  const url = nominatimUrl(q);
+  const res = await fetch(url, {
+    headers: {
+      // Can't set User-Agent from browsers, but Nominatim accepts referer; this is fine for dev use.
+      'Accept-Language': 'en'
+    }
+  });
+  if (!res.ok) { suggestions = []; renderSuggestions([]); return; }
+  const arr = await res.json();
+  // store and render
+  cache.set(q, arr);
+  suggestions = arr;
+  renderSuggestions(arr);
+}
+
+// Debounce the fetch so we wait 300ms after typing stops
+const debouncedFetch = debounce((q)=>fetchSuggestions(q), 300);
+
+// Event listeners
+inputEl.addEventListener('input', (e)=>{
+  selectedIndex = -1;
+  debouncedFetch(e.target.value);
+});
+
+suggestionBox.addEventListener('click', (ev)=>{
+  const item = ev.target.closest('.suggestion-item');
+  if (!item) return;
+  const idx = Number(item.dataset.idx);
+  pickSuggestion(idx);
+});
+
+// keyboard navigation: up/down/enter/escape
+inputEl.addEventListener('keydown', (ev)=>{
+  if (!suggestions || suggestions.length === 0) return;
+  if (ev.key === 'ArrowDown'){
+    ev.preventDefault();
+    selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+    renderSuggestions(suggestions);
+  } else if (ev.key === 'ArrowUp'){
+    ev.preventDefault();
+    selectedIndex = Math.max(selectedIndex - 1, 0);
+    renderSuggestions(suggestions);
+  } else if (ev.key === 'Enter'){
+    // If suggestion highlighted, pick it
+    if (selectedIndex >= 0 && selectedIndex < suggestions.length){
+      ev.preventDefault();
+      pickSuggestion(selectedIndex);
+    } else {
+      // otherwise let default click handler of button trigger
+    }
+  } else if (ev.key === 'Escape'){
+    suggestionBox.innerHTML = '';
+    selectedIndex = -1;
+  }
+});
+
+// click outside to hide suggestions
+document.addEventListener('click', (e)=>{
+  if (!e.target.closest('.controls')) {
+    suggestionBox.innerHTML = '';
+    selectedIndex = -1;
+  }
+});
+
+const btn = document.getElementById('btn');
+const clearBtn = document.getElementById('clear');
+const loc = document.getElementById('location');
+const output = document.getElementById('output');
+const status = document.getElementById('status');
+
+function parseMaybeDoubleEncoded(x){
+  if (x === null || x === undefined) return null;
+  if (typeof x === 'object') return x;
+  if (typeof x !== 'string') return null;
+  try {
+    let v = JSON.parse(x);
+    if (typeof v === 'string') v = JSON.parse(v);
+    return v;
+  } catch(e){
+    return null;
+  }
+}
+
+function escapeHtml(s){
+  return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+}
+
+function topTable(city, info, source){
+  const lat = info?.latitude ?? 'N/A';
+  const lon = info?.longitude ?? 'N/A';
+  const tz  = info?.timezone ?? 'N/A';
+
+  return `
+    <div class="card">
+      <strong>Overview — ${escapeHtml(city)}</strong>
+      <table>
+        <tr><th class="k">Field</th><th class="v">Value</th></tr>
+        <tr><td class="k">City</td><td class="v">${escapeHtml(city)}</td></tr>
+        <tr><td class="k">Latitude</td><td class="v">${escapeHtml(String(lat))}</td></tr>
+        <tr><td class="k">Longitude</td><td class="v">${escapeHtml(String(lon))}</td></tr>
+        <tr><td class="k">Timezone</td><td class="v">${escapeHtml(String(tz))}</td></tr>
+        <tr><td class="k">Source</td><td class="v">${escapeHtml(source)}</td></tr>
+      </table>
+    </div>
+  `;
+}
+
+function currentTable(cur){
+  if (!cur || Object.keys(cur).length === 0) {
+    return `<div class="card empty">No currentConditions data available.</div>`;
+  }
+  let rows = `<tr><th class="k">Metric</th><th class="v">Value</th></tr>`;
+  for (const [k,v] of Object.entries(cur)) {
+    rows += `<tr><td class="k">${escapeHtml(k)}</td><td class="v">${escapeHtml(String(v))}</td></tr>`;
+  }
+  return `<div class="card"><strong>Current Conditions</strong><table>${rows}</table></div>`;
+}
+
+async function fetchWeather(city){
+  const url = `/weather/${encodeURIComponent(city)}`;
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${text}`);
+  const data = JSON.parse(text);
+  data.info = parseMaybeDoubleEncoded(data.info);
+  return data;
+}
+
+btn.addEventListener('click', async ()=>{
+  const city = loc.value.trim();
+  if (!city) return;
+  status.textContent = 'Loading...';
+  output.innerHTML = '';
+  try {
+    const data = await fetchWeather(city);
+    if (!data.info){
+      status.innerHTML = `<span class="error">Details not found for ${escapeHtml(city)}.</span>`;
+      return;
+    }
+    status.textContent = `Showing data for ${city}`;
+    const top = topTable(data.city || city, data.info, data.source || 'api');
+    const current = currentTable(data.info.current || {});
+    output.innerHTML = top + current;
+  } catch(err){
+    status.innerHTML = `<span class="error">${escapeHtml(err.message)}</span>`;
+    output.innerHTML = '';
+  }
+});
+
+clearBtn.addEventListener('click', ()=>{
+  loc.value = '';
+  status.textContent = 'Enter a city and click Get Weather';
+  output.innerHTML = '';
+});
+</script>
 </body>
 </html>

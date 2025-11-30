@@ -40,7 +40,7 @@ def get_details(location: str):
     desired_info["latitude"] = res.get("latitude")
     desired_info["longitude"] = res.get("longitude")
     desired_info["timezone"] = res.get("timezone")
-    desired_info["currentConditions"] = res.get("currentConditions", {})
+    desired_info["current"] = res.get("currentConditions", {})
     json_data = json.dumps(desired_info)
     r.set(key,json_data,CACHE_TTL)
     return {"city":location ,"info":desired_info, "source": "api"}
