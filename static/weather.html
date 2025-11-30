@@ -16,7 +16,7 @@
     fetch(`http://127.0.0.1:8000/weather/${value}`)
         .then(response => response.json())
         .then(data => {
-            document.getElementById("message").textContent = JSON.stringify(data);
+            document.getElementById("message").textContent= JSON.stringify(data);
         });
 }
   </script>
