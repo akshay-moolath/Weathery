@@ -21,8 +21,11 @@ router = APIRouter()
 def get_details(location: str):
 
     key = f"weather:{location.lower()}" #making key-value system
+    
 
     cached = r.get(key)
+    obj = json.loads(cached)
+    
     if cached:
         if isinstance(obj, str):
             obj = json.loads(obj)
