@@ -22,15 +22,14 @@ def get_details(location: str):
 
     key = f"weather:{location.lower()}" #making key-value system
     
-
     cached = r.get(key)
-    obj = json.loads(cached)
     
     if cached:
+        obj = json.loads(cached)
         if isinstance(obj, str):
             obj = json.loads(obj)
         extracted_info = obj
-        return {"city": location, "info": extracted_info, "source": "cache"}
+        return {"city":location,"info": extracted_info, "source": "cache"}
 
     api_url = URL+ location +"?key="+API_KEY
     response = requests.get(api_url)
@@ -41,8 +40,8 @@ def get_details(location: str):
     desired_info["latitude"] = res.get("latitude")
     desired_info["longitude"] = res.get("longitude")
     desired_info["timezone"] = res.get("timezone")
-    desired_info["current"] = res.get("currentConditions", {})
+    desired_info["currentConditions"] = res.get("currentConditions", {})
     json_data = json.dumps(desired_info)
     r.set(key,json_data,CACHE_TTL)
-    return {"city": location, 'info':desired_info, "source": "api"}
+    return {"city":location ,"info":desired_info, "source": "api"}
 

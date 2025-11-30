@@ -5,11 +5,32 @@
   <title>Weathery</title>
 </head>
 <body>
-  <h1>Weathery</h1>
-  <label for="location">Location</label>
-  <input type="text" id="location" name="location">
-  <button type="button" onclick="weather()">Get Weather Data</button>
-  <p id="message"></p>
+  <style>
+    body {
+    background-image: url('https://i.ibb.co/GvjDXYK9/pexels-abdghat-1631677.jpg');
+    background-size : cover
+    }
+    h1{text-align: center;
+    }
+    
+    .btn {
+        padding: 5px 10px; /* Padding INSIDE the button */
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+    
+  </style>
+  <h1>Weathery</h1><hr>
+  <div class="form-group">
+    <label for="location"></label>
+    <input type="text" id="location" placeholder="Enter Location">
+    <button class="btn" onclick="weather()">Get Weather Data</button><br></br>
+  </div>
+  <div id="message"></div>
   <script>
     function weather() {
     const value = document.getElementById("location").value;
