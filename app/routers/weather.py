@@ -22,29 +22,24 @@ def get_details(location: str):
 
     key = f"weather:{location.lower()}" #making key-value system
 
-    # 1) Check cache
     cached = r.get(key)
-    
-    ''' cached is stored as a string,which means if 
-    we are storing a number ,it will convert to string.we need to convert it back'''
     if cached:
-        try:
-            lat_val = float(cached)
-        except ValueError:
-            lat_val = cached
-        return {"city": location, "latitude": lat_val, "source": "cache"}
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        extracted_info = obj
+        return {"city": location, "info": extracted_info, "source": "cache"}
 
     api_url = URL+ location +"?key="+API_KEY
     response = requests.get(api_url)
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=f"Weather API error: {response.text}")
-    data_dict = response.json()
+    res = response.json()
     desired_info = {}
-    desired_info["latitude"] = data_dict.get("latitude")
-    desired_info["longitude"] = data_dict.get("longitude")
-    desired_info["timezone"] = data_dict.get("timezone")
-    desired_info["current"] = data_dict.get("currentConditions", {})
+    desired_info["latitude"] = res.get("latitude")
+    desired_info["longitude"] = res.get("longitude")
+    desired_info["timezone"] = res.get("timezone")
+    desired_info["current"] = res.get("currentConditions", {})
     json_data = json.dumps(desired_info)
-    r.set(key, json_data, CACHE_TTL)
+    r.set(key,json_data,CACHE_TTL)
     return {"city": location, 'info':desired_info, "source": "api"}
 
