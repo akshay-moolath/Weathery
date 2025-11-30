@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
-httpx
-redis
-python-dotenv
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+redis==5.0.1
+python-dotenv==1.0.1
+requests==2.31.0
